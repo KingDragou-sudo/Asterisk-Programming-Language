@@ -1,0 +1,24 @@
+func add(a, b) {
+    ret a + b;
+}
+
+func multiply(x, y) {
+    ret x * y;
+}
+
+func factorial(n) {
+    if (n) then {
+        ret n * factorial(n - 1);
+    }
+    ret 1;
+}
+
+var result1 = add(5, 3);
+var result2 = multiply(4, 7);
+var result3 = factorial(5);
+
+print(result1);
+print(result2);
+print(result3);
+
+ret result1 + result2 + result3;
