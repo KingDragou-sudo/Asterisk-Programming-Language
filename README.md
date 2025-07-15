@@ -78,6 +78,6 @@ Alright, so I'll just get the CURRENT documentation outta the way.
     sqrt
     pow
 
-#ROOM Functions:
+# ROOM Functions:
     len(ROOM room) 
     frag(ROOM room, int start, int end)
