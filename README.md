@@ -77,3 +77,7 @@ Alright, so I'll just get the CURRENT documentation outta the way.
     max
     sqrt
     pow
+
+#ROOM Functions:
+    len(ROOM room) 
+    frag(ROOM room, int start, int end)
