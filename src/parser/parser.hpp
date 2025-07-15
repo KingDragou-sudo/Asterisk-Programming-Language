@@ -85,7 +85,7 @@ struct Parser {
     std::unique_ptr<Expression> parse_primary() {
     Token tok = current_token();
 
-    switch (tok.type) {
+    switch (tok.type) {       
         case TokenType::INT: {
             advance();
             return std::make_unique<IntLiteral>(std::stoi(tok.value));
@@ -139,6 +139,24 @@ struct Parser {
             expect(TokenType::CLOSE_PAREN);
             return std::make_unique<ParenthesizedExpression>(std::move(expr));
         }
+        case TokenType::OPEN_BRACK: {
+            advance();
+            std::vector<std::unique_ptr<Expression>> elements;
+
+            if (current_token().type != TokenType::CLOSE_BRACK) {
+                do {
+                    elements.push_back(parse_expression(0));
+                    if (current_token().type == TokenType::COMMA) {
+                        advance();
+                    } else {
+                        break;
+                    }
+                } while (true);
+            }
+
+            expect(TokenType::CLOSE_BRACK);
+            return std::make_unique<RoomLiteral>(std::move(elements));
+        }
         case TokenType::MINUS:
         case TokenType::PLUS: {
             advance();
@@ -174,14 +192,28 @@ struct Parser {
             expect(TokenType::CLOSE_PAREN);
             return std::make_unique<FunctionCall>(name, std::move(arguments));
         }
+        case TokenType::ROOM_IDENTIFIER: {
+            std::string name = tok.value;
+            advance();
+            if (current_token().type == TokenType::OPEN_BRACK) {
+                advance();
+                auto index = parse_expression(0);
+                expect(TokenType::CLOSE_BRACK);
+                return std::make_unique<RoomAccess>(name, std::move(index));
+            } 
+            else {
+                return std::make_unique<Identifier>(name);
+            }
+        }
+        
         default:
             throw std::runtime_error("Unexpected token in primary expression: " + tok.value);
     }
 }
     std::unique_ptr<Statement> parse_variable_declaration() {
         expect(TokenType::VAR);
-        
-        if (current_token().type != TokenType::IDENTIFIER) {
+
+        if (current_token().type != TokenType::IDENTIFIER && current_token().type != TokenType::ROOM_IDENTIFIER) {
             throw std::runtime_error("Expected identifier after 'var'");
         }
         
@@ -281,13 +313,24 @@ struct Parser {
         return std::make_unique<BlockStatement>(std::move(statements));
     }
     std::unique_ptr<Statement> parse_expression_statement() {
-        if (current_token().type == TokenType::IDENTIFIER && peek_token().type == TokenType::EQUALS) {
+        if ((current_token().type == TokenType::IDENTIFIER || current_token().type == TokenType::ROOM_IDENTIFIER) && peek_token().type == TokenType::EQUALS) {
             std::string var_name = current_token().value;
-            advance(); 
+            advance();
             advance();
             auto value = parse_expression(0);
             expect(TokenType::SEMICOLON);
             return std::make_unique<AssignmentStatement>(var_name, std::move(value));
+        }
+        else if (current_token().type == TokenType::ROOM_IDENTIFIER && peek_token().type == TokenType::OPEN_BRACK){
+            std::string room_name = current_token().value;
+            advance();
+            expect(TokenType::OPEN_BRACK);
+            auto index = parse_expression(0);
+            expect(TokenType::CLOSE_BRACK);
+            expect(TokenType::EQUALS);
+            auto value = parse_expression(0);
+            expect(TokenType::SEMICOLON);
+            return std::make_unique <RoomAssignmentStatement>(room_name, std::move(index), std::move(value));
         }
 
         auto expr = parse_expression(0);

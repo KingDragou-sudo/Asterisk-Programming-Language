@@ -6,7 +6,7 @@
 #include "../lexer.hpp"
 
 struct Statement;
-struct Expression;
+struct Expression;  
 
 struct ASTNode {
     virtual ~ASTNode() = default;
@@ -129,6 +129,34 @@ struct FunctionCall : public Expression {
         for (const auto& arg : arguments) {
             arg->print(indent + 4);
         }
+    }
+};
+
+struct RoomLiteral : public Expression {
+    std::vector<std::unique_ptr<Expression>> elements;
+
+    RoomLiteral(std::vector<std::unique_ptr<Expression>> elems)
+        : elements(std::move(elems)) {}
+
+    void print(int indent = 0) const override {
+        std::cout << std::string(indent, ' ') << "RoomLiteral:" << std::endl;
+        for (const auto& elem : elements) {
+            elem->print(indent + 2);
+        }
+    }
+};
+
+struct RoomAccess : public Expression {
+    std::string room_name;
+    std::unique_ptr<Expression> index;
+
+    RoomAccess(const std::string& name, std::unique_ptr<Expression> idx)
+        : room_name(name), index(std::move(idx)) {}
+
+    void print(int indent = 0) const override {
+        std::cout << std::string(indent, ' ') << "RoomAccess: " << room_name << std::endl;
+        std::cout << std::string(indent + 2, ' ') << "Index:" << std::endl;
+        index->print(indent + 4);
     }
 };
 

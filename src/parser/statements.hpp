@@ -60,6 +60,22 @@ struct ReturnStatement : public Statement {
         }
     }
 };
+struct RoomAssignmentStatement : public Statement {
+    std::string room_name;
+    std::unique_ptr<Expression> index;
+    std::unique_ptr<Expression> value;
+
+    RoomAssignmentStatement(const std::string& name, std::unique_ptr<Expression> idx, std::unique_ptr<Expression> val)
+        : room_name(name), index(std::move(idx)), value(std::move(val)) {}
+
+    void print(int indent = 0) const override {
+        std::cout << std::string(indent, ' ') << "RoomAssignmentStatement: " << room_name << std::endl;
+        std::cout << std::string(indent + 2, ' ') << "Index:" << std::endl;
+        index->print(indent + 4);
+        std::cout << std::string(indent + 2, ' ') << "Value:" << std::endl;
+        value->print(indent + 4);
+    }
+};
 
 struct FunctionDeclaration : public Statement {
     std::string name;

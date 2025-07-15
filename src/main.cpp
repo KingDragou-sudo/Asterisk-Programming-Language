@@ -19,7 +19,7 @@
 
 int main() {
 
-    std::ifstream file("../workspace/test.ast");
+    std::ifstream file("workspace/example.ast");
     std::string line;
 
     if (!file.is_open()) {

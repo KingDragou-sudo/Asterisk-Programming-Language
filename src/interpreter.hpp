@@ -11,7 +11,7 @@
 
 struct ReturnException {
     Value value;
-    ReturnException(Value val) : value(val) {}
+    ReturnException(const Value& val) : value(val) {}
 };
 
 struct UserFunction {
@@ -45,6 +45,39 @@ public:
         else if (auto unary_expr = dynamic_cast<const UnaryExpression*>(expr)) return evaluate_unary_expression(unary_expr);
         else if (auto paren_expr = dynamic_cast<const ParenthesizedExpression*>(expr)) return evaluate_expression(paren_expr->expression.get());
         else if (auto func_call = dynamic_cast<const FunctionCall*>(expr)) return evaluate_function_call(func_call);
+        else if (auto room_lit = dynamic_cast<const RoomLiteral*>(expr)) {
+            ValueVector elements;
+            for (const auto& element : room_lit->elements) {
+                elements.push_back(evaluate_expression(element.get()));
+            }
+            return Value(ValueArray(std::move(elements)));
+        }
+        else if(auto room_access = dynamic_cast<const RoomAccess*>(expr)){
+
+            if(variables.find(room_access->room_name) == variables.end()){
+                throw std::runtime_error("Undefined room: " + room_access->room_name);
+            }
+            
+            if(!variables[room_access->room_name].holds<ValueArray>()){
+                throw std::runtime_error("Not a room: " + room_access->room_name);
+            }
+
+            Value index_val = evaluate_expression(room_access->index.get());
+            int index = std::visit([](const auto& val) -> int {
+                if constexpr (std::is_arithmetic_v<std::decay_t<decltype(val)>>) {
+                    return static_cast<int>(val);
+                } else {
+                    throw std::runtime_error("room index must be numeric");
+                }
+            }, index_val.data);
+
+            ValueArray& room = variables[room_access->room_name].get<ValueArray>();
+            if (index < 0 || index >= static_cast<int>(room.size())) {
+                throw std::runtime_error("room index out of bounds");
+            }
+            return room[index];
+        }
+
         else throw std::runtime_error("Unknown expression type");
     }
 
@@ -55,33 +88,33 @@ public:
         switch (expr->operator_type) {
             case TokenType::PLUS:
                 return std::visit([](const auto& l, const auto& r) -> Value {
-                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> && 
+                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> &&
                                   std::is_arithmetic_v<std::decay_t<decltype(r)>>) {
                         return l + r;
                     } else {
                         throw std::runtime_error("Invalid operands for +");
                     }
-                }, left, right);
+                }, left.data, right.data);
             
             case TokenType::MINUS:
                 return std::visit([](const auto& l, const auto& r) -> Value {
-                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> && 
+                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> &&
                                   std::is_arithmetic_v<std::decay_t<decltype(r)>>) {
                         return l - r;
                     } else {
                         throw std::runtime_error("Invalid operands for -");
                     }
-                }, left, right);
+                }, left.data, right.data);
             
             case TokenType::STAR:
                 return std::visit([](const auto& l, const auto& r) -> Value {
-                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> && 
+                    if constexpr (std::is_arithmetic_v<std::decay_t<decltype(l)>> &&
                                   std::is_arithmetic_v<std::decay_t<decltype(r)>>) {
                         return l * r;
                     } else {
                         throw std::runtime_error("Invalid operands for *");
                     }
-                }, left, right);
+                }, left.data, right.data);
             
             case TokenType::SLASH:
                 return std::visit([](const auto& l, const auto& r) -> Value {
@@ -92,7 +125,7 @@ public:
                     } else {
                         throw std::runtime_error("Invalid operands for /");
                     }
-                }, left, right);
+                }, left.data, right.data);
 
             case TokenType::CARET:
                 return std::visit([](const auto& l, const auto& r) -> Value {
@@ -102,7 +135,7 @@ public:
                     } else {
                         throw std::runtime_error("Invalid operands for ^");
                     }
-                }, left, right);
+                }, left.data, right.data);
 
             case TokenType::EQUALS:
                 throw std::runtime_error("Assignment not supported in expressions");
@@ -123,7 +156,7 @@ public:
                     } else {
                         throw std::runtime_error("Invalid operand for unary -");
                     }
-                }, operand);
+                }, operand.data);
             
             case TokenType::PLUS:
                 return std::visit([](const auto& val) -> Value {
@@ -132,7 +165,7 @@ public:
                     } else {
                         throw std::runtime_error("Invalid operand for unary +");
                     }
-                }, operand);
+                }, operand.data);
             
             default:
                 throw std::runtime_error("Unknown unary operator");
@@ -140,7 +173,7 @@ public:
     }
 
     Value evaluate_function_call(const FunctionCall* func_call) {
-        std::vector<Value> args;
+        ValueVector args;
         for (const auto& arg_expr : func_call->arguments) {
             args.push_back(evaluate_expression(arg_expr.get()));
         }
@@ -153,7 +186,7 @@ public:
         return function_registry.call_function(func_call->function_name, args);
     }
 
-    Value call_user_function(const UserFunction& func, const std::vector<Value>& args) {
+    Value call_user_function(const UserFunction& func, const ValueVector& args) {
         if (args.size() != func.parameters.size()) {
             throw std::runtime_error("Function expects " + std::to_string(func.parameters.size()) +
                                    " arguments, got " + std::to_string(args.size()));
@@ -203,10 +236,14 @@ public:
                     return val;
                 } else if constexpr (std::is_arithmetic_v<std::decay_t<decltype(val)>>) {
                     return val != 0;
-                } else {
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(val)>, std::string>) {
                     return !val.empty();
+                } else if constexpr (std::is_same_v<std::decay_t<decltype(val)>, ValueArray>) {
+                    return !val.empty();
+                } else {
+                    return false;
                 }
-            }, condition);
+            }, condition.data);
 
             if (is_true) {
                 execute_statement(if_stmt->then_statement.get());
@@ -225,6 +262,32 @@ public:
                 return_value = evaluate_expression(ret_stmt->value.get());
             }
             throw ReturnException(return_value);
+        }
+        else if (auto room_assign = dynamic_cast<const RoomAssignmentStatement*>(stmt)){
+            if (variables.find(room_assign->room_name) == variables.end()) {
+                throw std::runtime_error("Undefined room: " + room_assign->room_name);
+            }
+
+            Value index_val = evaluate_expression(room_assign->index.get());
+            int index = std::visit([](const auto& val) -> int {
+                if constexpr (std::is_arithmetic_v<std::decay_t<decltype(val)>>) {
+                    return static_cast<int>(val);
+                } else {
+                    throw std::runtime_error("Room index must be numeric");
+                }
+            }, index_val.data);
+
+            Value new_value = evaluate_expression(room_assign->value.get());
+
+            if (!variables[room_assign->room_name].holds<ValueArray>()) {
+                throw std::runtime_error("Variable is not a room: " + room_assign->room_name);
+            }
+
+            ValueArray& room = variables[room_assign->room_name].get<ValueArray>();
+            if (index < 0 || index >= static_cast<int>(room.size())) {
+                throw std::runtime_error("Room index out of bounds");
+            }
+            room[index] = new_value;
         }
         else {
             throw std::runtime_error("Unknown statement type");

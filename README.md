@@ -8,6 +8,7 @@ Alright, so I'll just get the CURRENT documentation outta the way.
 -    strings
 -    chars
 -    bools
+-    ROOMs (replaces arrays and eventually vectors or maps)
 
 
 # Setting a variable:
@@ -22,6 +23,19 @@ Alright, so I'll just get the CURRENT documentation outta the way.
     /
     ^
 
+# Using ROOMs
+
+    how to use: variablename_ROOM
+
+    var name_ROOM = [value, value, value]; (type is always inferred)
+    var name_ROOM; (this'll default to an empty ROOM)
+
+    print(name_ROOM[0]); (prints the first value)
+    print(name_ROOM[0] == name_ROOM[1]); (prints true or false)
+
+    name_ROOM[0] = value; (changes the first value)
+
+    var name2_ROOM = name_ROOM; (copies the ROOM)
 
 # Statements:
 

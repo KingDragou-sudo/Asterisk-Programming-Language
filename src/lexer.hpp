@@ -24,19 +24,11 @@ enum TokenType{
     OPEN_PAREN, CLOSE_PAREN, OPEN_CURLY, CLOSE_CURLY, OPEN_BRACK, CLOSE_BRACK, COMMA, SEMICOLON, COLON,
 
     //function types
-    PRINT, ROUND, FLOOR, CEIL, ABS, MIN, MAX, SQRT, POW
-};
+    PRINT, ROUND, FLOOR, CEIL, ABS, MIN, MAX, SQRT, POW,
 
-std::ostream &operator<<(std::ostream& strm, TokenType ttype){
-    const std::string nameTT[] = {
-        "IDENTIFIER", "INT", "STRING", "FLOAT", "CHAR", "BOOL",
-        "IF", "THEN", "RET", "WHILE", "FOR", "ELSE", "CONTINUE", "BREAK", "IN", "ROOM", "VAR", "FUNC",
-        "PLUS", "MINUS", "EQUALS", "STAR", "SLASH", "CARET",
-        "OPEN_PAREN", "CLOSE_PAREN", "OPEN_CURLY", "CLOSE_CURLY", "OPEN_BRACK", "CLOSE_BRACK", "COMMA", "SEMICOLON", "COLON",
-        "PRINT", "ROUND", "FLOOR", "CEIL", "ABS", "MIN", "MAX", "SQRT", "POW",
-    };
-    return strm << nameTT[ttype];
-}
+    //array types
+    ROOM_IDENTIFIER
+};
 
 struct Token{
     TokenType type;
@@ -113,7 +105,11 @@ std::vector<Token> lexer(std::string line){
             size_t start = i;
             while (i < line.size() && (isalnum(line[i]) || line[i] == '_')) ++i;
             std::string word = line.substr(start, i - start);
-            if(word == "if") tokens.push_back(Token(IF, word));
+            
+            if (word.length() > 5 && word.substr(word.length() - 5) == "_ROOM") {
+                tokens.push_back(Token(ROOM_IDENTIFIER, word));
+            }
+            else if(word == "if") tokens.push_back(Token(IF, word));
             else if(word == "then") tokens.push_back(Token(THEN, word));
             else if(word == "ret") tokens.push_back(Token(RET, word));
             else if(word == "for") tokens.push_back(Token(FOR, word));
